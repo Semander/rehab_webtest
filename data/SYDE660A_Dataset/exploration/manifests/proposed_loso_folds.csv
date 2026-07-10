@@ -1,0 +1,10 @@
+person_id,fold_id,ex6_correct,ex6_incorrect,ex6_total,too_few_flag
+1,1,21,6,27,False
+2,2,21,1,22,True
+3,3,10,10,20,False
+4,4,17,3,20,False
+5,5,10,10,20,False
+6,6,10,11,21,False
+7,7,10,10,20,False
+8,8,17,5,22,False
+9,9,18,5,23,False

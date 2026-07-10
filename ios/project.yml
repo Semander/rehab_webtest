@@ -1,0 +1,41 @@
+#   brew install xcodegen
+#   sudo gem install cocoapods
+#   cd ios
+#   xcodegen generate
+#   pod install
+#   open RehabAI.xcworkspace
+
+#  In Xcode:
+#   1. Plug in your iPhone and pick it in the device menu at the top
+#   2. RehabAI target -> Signing & Capabilities -> set "Team" to your Apple ID
+#   3. Press the Play
+#   4. On the iPhone go to Settings -> General -> VPN & Device Management and tap Trust for your developer certificate.
+
+name: RehabAI
+options:
+  bundleIdPrefix: com.syde660
+  deploymentTarget:
+    iOS: "16.0"
+
+targets:
+  RehabAI:
+    type: application
+    platform: iOS
+    sources:
+      - path: RehabAI
+      - path: ../models/pretrained/pose_landmarker_full.task
+        buildPhase: resources
+    info:
+      path: RehabAI/Info.plist
+      properties:
+        CFBundleDisplayName: RehabAI
+        NSCameraUsageDescription: "RehabAI uses the camera to analyze your exercise form on-device."
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.syde660.rehabai
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: 1
+        SWIFT_VERSION: "5.0"

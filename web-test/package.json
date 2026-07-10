@@ -1,0 +1,21 @@
+{
+  "name": "rehab-ai-pwa-starter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare:vendor": "node scripts/copy-mediapipe-files.mjs",
+    "generate:sw": "node scripts/generate-service-worker.mjs",
+    "prepare:pwa": "npm run prepare:vendor && npm run generate:sw",
+    "dev": "npm run prepare:pwa && vite --host 0.0.0.0",
+    "build": "npm run prepare:pwa && vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^0.10.26"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^2.1.0",
+    "vite": "^7.0.0"
+  }
+}

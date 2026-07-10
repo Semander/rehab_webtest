@@ -1,0 +1,6 @@
+numpy==1.24.4
+pandas==2.0.3
+opencv-python==4.13.0.92
+matplotlib==3.7.5
+pyarrow==17.0.0
+mediapipe==0.10.5

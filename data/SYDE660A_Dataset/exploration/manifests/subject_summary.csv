@@ -1,0 +1,11 @@
+person_id,total_reps,correct_reps,incorrect_reps,ex6_reps,ex6_correct,ex6_incorrect,orientations
+1,123,75,48,27,21,6,"front,half-profile,profile"
+2,116,69,47,22,21,1,"front,half-profile,profile"
+3,123,46,77,20,10,10,"front,half-profile,profile"
+4,115,64,51,20,17,3,"front,half-profile,profile"
+5,117,54,63,20,10,10,"front,half-profile,profile"
+6,106,56,50,21,10,11,"front,half-profile,profile"
+7,115,66,49,20,10,10,"front,half-profile,profile"
+8,122,61,61,22,17,5,"front,half-profile,profile"
+9,127,72,55,23,18,5,"front,half-profile,profile"
+10,8,5,3,0,0,0,profile
