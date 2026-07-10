@@ -6,7 +6,7 @@ const OFFLINE_FILES = [
   "./index.html",
   "./manifest.webmanifest",
   "./models/README.md",
-  "./models/pose_landmarker_lite.task",
+  "./models/pose_landmarker_heavy.task",
   "./styles.css",
   "./vendor/mediapipe/vision_bundle.mjs",
   "./vendor/mediapipe/wasm/vision_wasm_internal.js",
