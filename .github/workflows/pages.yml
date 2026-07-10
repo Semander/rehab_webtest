@@ -22,6 +22,18 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v5
 
+      - name: Debug file layout
+        run: |
+          pwd
+          echo "Repository files:"
+          find . -maxdepth 3 -type f \( -name "package.json" -o -name "package-lock.json" -o -name "pose_landmarker_lite.task" \) -print
+          echo "web-test contents:"
+          ls -la web-test || true
+          echo "web-test/scripts contents:"
+          ls -la web-test/scripts || true
+          echo "web-test/web contents:"
+          ls -la web-test/web || true
+
       - name: Set up Node
         uses: actions/setup-node@v5
         with:
@@ -30,21 +42,25 @@ jobs:
           cache-dependency-path: web-test/package-lock.json
 
       - name: Install dependencies
-        run: npm install
+        working-directory: web-test
+        run: npm ci
 
-      - name: Check model exists
-        run: test -f web/models/pose_landmarker_lite.task
+      - name: Copy model into web app
+        run: |
+          mkdir -p web-test/web/models
+          cp models/pretrained/pose_landmarker_lite.task web-test/web/models/pose_landmarker_lite.task
 
       - name: Prepare static PWA files
+        working-directory: web-test
         run: npm run prepare:pwa
 
       - name: Disable Jekyll processing
-        run: touch web/.nojekyll
+        run: touch web-test/web/.nojekyll
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: web
+          path: web-test/web
 
   deploy:
     environment:
