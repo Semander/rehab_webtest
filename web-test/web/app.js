@@ -5,7 +5,7 @@ import {
 
 const MODEL_PATH = "./models/pose_landmarker_lite.task";
 const WASM_PATH = "./vendor/mediapipe/wasm";
-const TARGET_INFERENCE_FPS = 10;
+const TARGET_INFERENCE_FPS = 30;
 const INFERENCE_INTERVAL_MS = 1000 / TARGET_INFERENCE_FPS;
 
 const IDX = {
