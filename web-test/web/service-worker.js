@@ -48,10 +48,10 @@ self.addEventListener("fetch", event => {
   event.respondWith(
     fetch(event.request)
       .then(networkResponse => {
-        const responseClone = networkResponse.clone();
+        const copy = networkResponse.clone();
 
         caches.open(CACHE_NAME).then(cache => {
-          cache.put(event.request, responseClone);
+          cache.put(event.request, copy);
         });
 
         return networkResponse;
