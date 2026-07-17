@@ -48,8 +48,12 @@ jobs:
       - name: Copy model into web app
         run: |
           mkdir -p web-test/web/models
-          cp models/pretrained/pose_landmarker_lite.task web-test/web/models/pose_landmarker_lite.task
+          cp models/pretrained/pose_landmarker_lite.task \
+            web-test/web/models/pose_landmarker_lite.task
 
+          cp models/pretrained/pose_landmarker_heavy.task \
+            web-test/web/models/pose_landmarker_heavy.task
+            
       - name: Prepare static PWA files
         working-directory: web-test
         run: npm run prepare:pwa

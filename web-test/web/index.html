@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
     <meta name="theme-color" content="#111111" />
     <title>REHAB-AI Pose Test</title>
     <link rel="manifest" href="./manifest.webmanifest" />
@@ -26,9 +29,13 @@
         <button id="startButton" type="button">Start camera</button>
         <button id="stopButton" type="button" disabled>Stop</button>
         <button id="resetButton" type="button">Reset reps</button>
+        <button id="modelSwitchButton" type="button">
+          Switch to Heavy
+        </button>
       </section>
 
       <section class="metrics" aria-live="polite">
+        <div><span>Model</span><strong id="currentModel">Lite</strong></div>
         <div><span>Pose</span><strong id="poseState">—</strong></div>
         <div><span>Phase</span><strong id="phase">standing</strong></div>
         <div><span>Reps</span><strong id="repCount">0</strong></div>
@@ -39,7 +46,10 @@
       </section>
 
       <section class="notes">
-        <p>This test runs the Pose Landmarker locally in the browser. No video upload is implemented in this prototype.</p>
+        <p>
+          This test runs the Pose Landmarker locally in the browser on the
+          device CPU. No video upload is implemented in this prototype.
+        </p>
       </section>
     </main>
 

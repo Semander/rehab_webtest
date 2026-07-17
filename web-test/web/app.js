@@ -3,7 +3,16 @@ import {
   PoseLandmarker
 } from "./vendor/mediapipe/vision_bundle.mjs";
 
-const MODEL_PATH = "./models/pose_landmarker_heavy.task";
+const MODEL_PATHS = Object.freeze({
+  lite: "./models/pose_landmarker_lite.task",
+  heavy: "./models/pose_landmarker_heavy.task"
+});
+
+const MODEL_LABELS = Object.freeze({
+  lite: "Lite",
+  heavy: "Heavy"
+});
+
 const WASM_PATH = "./vendor/mediapipe/wasm";
 const TARGET_INFERENCE_FPS = 30;
 const INFERENCE_INTERVAL_MS = 1000 / TARGET_INFERENCE_FPS;
@@ -40,6 +49,8 @@ const elements = {
   startButton: document.querySelector("#startButton"),
   stopButton: document.querySelector("#stopButton"),
   resetButton: document.querySelector("#resetButton"),
+  modelSwitchButton: document.querySelector("#modelSwitchButton"),
+  currentModel: document.querySelector("#currentModel"),
   poseState: document.querySelector("#poseState"),
   phase: document.querySelector("#phase"),
   repCount: document.querySelector("#repCount"),
@@ -52,7 +63,10 @@ const elements = {
 const canvasContext = elements.canvas.getContext("2d");
 
 const appState = {
+  visionFileset: null,
   poseLandmarker: null,
+  currentModel: "lite",
+  isSwitchingModel: false,
   stream: null,
   isRunning: false,
   animationFrameId: null,
@@ -65,12 +79,20 @@ const appState = {
 
 window.addEventListener("load", async () => {
   await registerServiceWorker();
-  setStatus("Ready. Press Start camera.");
 
   elements.startButton.addEventListener("click", startCameraTest);
   elements.stopButton.addEventListener("click", stopCameraTest);
   elements.resetButton.addEventListener("click", resetReps);
+  elements.modelSwitchButton.addEventListener("click", () => {
+    const nextModel = appState.currentModel === "lite" ? "heavy" : "lite";
+    void switchPoseModel(nextModel);
+  });
+
   window.addEventListener("resize", resizeCanvasToVideo);
+  window.addEventListener("beforeunload", releaseResources);
+
+  updateModelUi();
+  setStatus("Ready. Press Start camera.");
 });
 
 async function registerServiceWorker() {
@@ -86,13 +108,18 @@ async function registerServiceWorker() {
 }
 
 async function startCameraTest() {
+  if (appState.isRunning || appState.isSwitchingModel) {
+    return;
+  }
+
   try {
     elements.startButton.disabled = true;
-    setStatus("Loading pose model…");
 
     if (!appState.poseLandmarker) {
-      await checkModelExists();
-      appState.poseLandmarker = await createPoseLandmarker();
+      setStatus(`Loading ${MODEL_LABELS[appState.currentModel]} model…`);
+      appState.poseLandmarker = await createPoseLandmarker(
+        appState.currentModel
+      );
     }
 
     setStatus("Opening camera…");
@@ -110,10 +137,14 @@ async function startCameraTest() {
     await elements.video.play();
 
     resizeCanvasToVideo();
+    resetFpsWindow();
 
     appState.isRunning = true;
     elements.stopButton.disabled = false;
-    setStatus("Running pose detection locally.");
+    setStatus(
+      `Running ${MODEL_LABELS[appState.currentModel]} pose detection locally.`
+    );
+
     appState.animationFrameId = requestAnimationFrame(processFrameLoop);
   } catch (error) {
     console.error(error);
@@ -123,30 +154,95 @@ async function startCameraTest() {
   }
 }
 
-async function checkModelExists() {
-  const response = await fetch(MODEL_PATH, { cache: "no-store" });
-  if (!response.ok) {
+async function createPoseLandmarker(modelName) {
+  const modelPath = MODEL_PATHS[modelName];
+
+  if (!modelPath) {
+    throw new Error(`Unknown model: ${modelName}`);
+  }
+
+  if (!appState.visionFileset) {
+    appState.visionFileset = await FilesetResolver.forVisionTasks(WASM_PATH);
+  }
+
+  try {
+    return await PoseLandmarker.createFromOptions(
+      appState.visionFileset,
+      {
+        baseOptions: {
+          modelAssetPath: modelPath,
+          delegate: "CPU"
+        },
+        runningMode: "VIDEO",
+        numPoses: 1,
+        outputSegmentationMasks: false,
+        minPoseDetectionConfidence: 0.5,
+        minPosePresenceConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      }
+    );
+  } catch (error) {
     throw new Error(
-      `Model not found at ${MODEL_PATH}. Copy pose_landmarker_lite.task into web/models/.`
+      `Could not load the ${MODEL_LABELS[modelName]} model from ${modelPath}. ` +
+      `Confirm that the model file exists and is included in the offline cache. ` +
+      `Original error: ${error.message}`
     );
   }
 }
 
-async function createPoseLandmarker() {
-  const vision = await FilesetResolver.forVisionTasks(WASM_PATH);
+async function switchPoseModel(nextModel) {
+  if (
+    appState.isSwitchingModel ||
+    nextModel === appState.currentModel ||
+    !MODEL_PATHS[nextModel]
+  ) {
+    return;
+  }
 
-  return PoseLandmarker.createFromOptions(vision, {
-    baseOptions: {
-      modelAssetPath: MODEL_PATH,
-      delegate: "CPU"
-    },
-    runningMode: "VIDEO",
-    numPoses: 1,
-    minPoseDetectionConfidence: 0.5,
-    minPosePresenceConfidence: 0.5,
-    minTrackingConfidence: 0.5,
-    outputSegmentationMasks: false
-  });
+  const previousModel = appState.currentModel;
+  const oldLandmarker = appState.poseLandmarker;
+
+  appState.isSwitchingModel = true;
+  appState.poseLandmarker = null;
+  elements.modelSwitchButton.disabled = true;
+  elements.startButton.disabled = true;
+  elements.currentModel.textContent = `Loading ${MODEL_LABELS[nextModel]}…`;
+  setStatus(`Switching to ${MODEL_LABELS[nextModel]} model…`);
+
+  try {
+    oldLandmarker?.close?.();
+
+    appState.poseLandmarker = await createPoseLandmarker(nextModel);
+    appState.currentModel = nextModel;
+    appState.lastInferenceAt = 0;
+    resetFpsWindow();
+
+    setStatus(
+      appState.isRunning
+        ? `Running ${MODEL_LABELS[nextModel]} pose detection locally.`
+        : `${MODEL_LABELS[nextModel]} model ready. Press Start camera.`
+    );
+  } catch (error) {
+    console.error("Failed to switch pose model:", error);
+    setStatus(`Model switch failed: ${error.message}`);
+
+    try {
+      appState.poseLandmarker = await createPoseLandmarker(previousModel);
+      appState.currentModel = previousModel;
+      setStatus(
+        `Restored ${MODEL_LABELS[previousModel]} model after switch failure.`
+      );
+    } catch (restoreError) {
+      console.error("Failed to restore previous model:", restoreError);
+      appState.poseLandmarker = null;
+      setStatus("No pose model is currently available.");
+    }
+  } finally {
+    appState.isSwitchingModel = false;
+    elements.modelSwitchButton.disabled = false;
+    elements.startButton.disabled = appState.isRunning;
+    updateModelUi();
+  }
 }
 
 function processFrameLoop(nowMs) {
@@ -155,6 +251,8 @@ function processFrameLoop(nowMs) {
   }
 
   if (
+    !appState.isSwitchingModel &&
+    appState.poseLandmarker &&
     elements.video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
     nowMs - appState.lastInferenceAt >= INFERENCE_INTERVAL_MS
   ) {
@@ -166,6 +264,10 @@ function processFrameLoop(nowMs) {
 }
 
 function runPoseDetection(timestampMs) {
+  if (!appState.poseLandmarker || appState.isSwitchingModel) {
+    return;
+  }
+
   try {
     const startedAt = performance.now();
     const result = appState.poseLandmarker.detectForVideo(
@@ -202,6 +304,7 @@ function handlePoseResult(result) {
     landmarks[IDX.leftKnee],
     landmarks[IDX.leftAnkle]
   );
+
   const rightKnee = angleDegrees(
     landmarks[IDX.rightHip],
     landmarks[IDX.rightKnee],
@@ -215,17 +318,18 @@ function handlePoseResult(result) {
 }
 
 function updateSimpleSquatCounter(leftKnee, rightKnee) {
-  const validAngles = [leftKnee, rightKnee].filter(angle => angle !== null);
+  const validAngles = [leftKnee, rightKnee].filter(
+    angle => angle !== null
+  );
+
   if (validAngles.length === 0) {
     return;
   }
 
-  const averageKnee = validAngles.reduce((sum, angle) => sum + angle, 0) / validAngles.length;
+  const averageKnee =
+    validAngles.reduce((sum, angle) => sum + angle, 0) /
+    validAngles.length;
 
-  // Extremely simple test logic:
-  // standing: knee relatively straight
-  // down: knee flexed
-  // one rep: user goes down, then comes back up
   if (appState.phase === "standing" && averageKnee < 125) {
     appState.phase = "down";
   } else if (appState.phase === "down" && averageKnee > 160) {
@@ -279,6 +383,7 @@ function drawPose(landmarks) {
   for (const [startIndex, endIndex] of POSE_CONNECTIONS) {
     const start = landmarks[startIndex];
     const end = landmarks[endIndex];
+
     if (!isVisible(start) || !isVisible(end)) {
       continue;
     }
@@ -315,7 +420,12 @@ function resizeCanvasToVideo() {
 }
 
 function clearCanvas() {
-  canvasContext.clearRect(0, 0, elements.canvas.width, elements.canvas.height);
+  canvasContext.clearRect(
+    0,
+    0,
+    elements.canvas.width,
+    elements.canvas.height
+  );
 }
 
 function updateFps() {
@@ -329,6 +439,13 @@ function updateFps() {
     appState.processedFrames = 0;
     appState.fpsWindowStartedAt = now;
   }
+}
+
+function resetFpsWindow() {
+  appState.processedFrames = 0;
+  appState.fpsWindowStartedAt = performance.now();
+  elements.fps.textContent = "—";
+  elements.latency.textContent = "—";
 }
 
 function resetReps() {
@@ -355,9 +472,27 @@ function stopCameraTest() {
 
   elements.video.srcObject = null;
   clearCanvas();
+  elements.poseState.textContent = "—";
+  elements.leftKnee.textContent = "—";
+  elements.rightKnee.textContent = "—";
   elements.startButton.disabled = false;
   elements.stopButton.disabled = true;
   setStatus("Stopped.");
+}
+
+function releaseResources() {
+  stopCameraTest();
+  appState.poseLandmarker?.close?.();
+  appState.poseLandmarker = null;
+}
+
+function updateModelUi() {
+  const currentLabel = MODEL_LABELS[appState.currentModel];
+  const nextModel = appState.currentModel === "lite" ? "heavy" : "lite";
+
+  elements.currentModel.textContent = currentLabel;
+  elements.modelSwitchButton.textContent =
+    `Switch to ${MODEL_LABELS[nextModel]}`;
 }
 
 function formatAngle(angle) {
